@@ -1,0 +1,113 @@
+<!-- File: public/index.html -->
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare Subdomain Creator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #0d1117; color: #c9d1d9; }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        @keyframes pulse-glow-border {
+            0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5), 0 0 30px rgba(59, 130, 246, 0.3); border-color: #3b82f6; }
+            50% { box-shadow: 0 0 25px rgba(99, 102, 241, 0.6), 0 0 50px rgba(99, 102, 241, 0.4); border-color: #6366f1; }
+        }
+        .glowing-container { border: 2px solid #3b82f6; animation: pulse-glow-border 4s ease-in-out infinite; background-color: #161b22; }
+        .form-input { background-color: #0d1117; border: 1px solid #30363d; color: #c9d1d9; transition: border-color 0.3s, box-shadow 0.3s; }
+        .form-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); }
+        .btn-primary { background: linear-gradient(90deg, #3b82f6, #6366f1); transition: transform 0.2s, box-shadow 0.2s; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4); }
+        .btn-primary:disabled { background: #30363d; cursor: not-allowed; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="glowing-container max-w-2xl w-full rounded-2xl shadow-2xl p-6 md:p-8">
+        <div class="text-center mb-6">
+            <h1 class="font-orbitron text-3xl md:text-4xl font-bold text-white">Subdomain Creator</h1>
+            <p class="text-gray-400 mt-2">Dibuat oleh RIKI - Aman di Vercel</p>
+        </div>
+
+        <form id="create-domain-form" class="space-y-4">
+            <div>
+                <label for="subdomain" class="block text-sm font-medium text-gray-300 mb-1">Subdomain</label>
+                <input type="text" id="subdomain" name="subdomain" class="form-input rounded-md p-2 w-full" placeholder="contoh: panelku" required>
+            </div>
+            <div>
+                <label for="domain" class="block text-sm font-medium text-gray-300 mb-1">Pilih Domain Utama</label>
+                <select id="domain" name="domain" class="form-input rounded-md p-2 w-full" required></select>
+            </div>
+            <div>
+                <label for="ip_address" class="block text-sm font-medium text-gray-300 mb-1">IP Address</label>
+                <input type="text" id="ip_address" name="ip_address" class="form-input rounded-md p-2 w-full" placeholder="Masukkan IP Address tujuan" required>
+            </div>
+            <button type="submit" id="submit-btn" class="btn-primary w-full text-white font-bold py-3 px-4 rounded-md">Buat Subdomain</button>
+        </form>
+
+        <div id="result" class="mt-6 text-center"></div>
+    </div>
+
+    <script>
+        // Daftar domain ini aman untuk ditampilkan karena tidak mengandung token
+        const domainList = [
+          "mypanelstore.web.id", "privatserver.my.id", "serverku.biz.id", "panelwebsite.biz.id", "pteroserver.us.kg", "digitalserver.us.kg", "shopserver.us.kg", "bisnis-panel.web.id", "bokep-jepang.biz.id", "developer-bot.biz.id", "developerbot.my.id", "doa-ibu.my.id", "doo-ayah.biz.id", "fenscaitlin.web.id", "ff-freefirecom.my.id", "hostindonesia.biz.id", "kangbot.biz.id", "yt-rikishopreal.my.id", "yandex-x-proxy.my.id", "xxnnxx.my.id", "web-host.biz.id", "topup-murah.my.id", "tokohost.my.id", "tokogame.biz.id", "stropanel48.biz.id", "shop-online.my.id", "serverdigital.biz.id", "rikishopreal.my.id", "rikionline.shop", "reseller-vripat.my.id", "republik-indonesia.biz.id", "petrodactyl.biz.id", "panelvripate.my.id", "panel-murah.my.id", "panelkishop.web.id", "panelfjkt.my.id", "panel-bot-whatsapp.my.id", "panelbotpublic.biz.id", "panelbadak.my.id", "marketrikishop.my.id", "kangpanel.biz.id"
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const domainSelect = document.getElementById('domain');
+            const form = document.getElementById('create-domain-form');
+            const resultDiv = document.getElementById('result');
+            const submitBtn = document.getElementById('submit-btn');
+
+            // Mengisi dropdown dengan domain dari daftar
+            domainList.sort().forEach(domain => {
+                const option = document.createElement('option');
+                option.value = domain;
+                option.textContent = domain;
+                domainSelect.appendChild(option);
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Memproses...';
+                resultDiv.innerHTML = '';
+
+                try {
+                    // Kirim data ke backend kita sendiri, bukan ke Cloudflare
+                    const response = await fetch('/api/create-subdomain', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            subdomain: document.getElementById('subdomain').value,
+                            domain: domainSelect.value,
+                            ipAddress: document.getElementById('ip_address').value
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        const fullDomain = `${result.result.name}`;
+                        const ipAddress = result.result.content;
+                        resultDiv.innerHTML = `<div class="bg-green-900/50 border border-green-500 text-green-300 p-4 rounded-md"><h3 class="font-bold">Berhasil!</h3><p>Subdomain <strong>${fullDomain}</strong> berhasil dibuat ke IP <strong>${ipAddress}</strong>.</p></div>`;
+                        form.reset();
+                    } else {
+                        const errorMessage = result.errors?.[0]?.message || result.message || 'Terjadi kesalahan.';
+                        resultDiv.innerHTML = `<div class="bg-red-900/50 border border-red-500 text-red-300 p-4 rounded-md"><h3 class="font-bold">Gagal!</h3><p>${errorMessage}</p></div>`;
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = `<div class="bg-red-900/50 border border-red-500 text-red-300 p-4 rounded-md"><h3 class="font-bold">Error Jaringan!</h3><p>Tidak dapat terhubung ke server.</p></div>`;
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Buat Subdomain';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
