@@ -1,63 +1,53 @@
-// File: api/create-subdomain.js
 
 export default async function handler(request, response) {
-  // Hanya izinkan metode POST
   if (request.method !== 'POST') {
     return response.status(405).json({ message: 'Method Not Allowed' });
   }
 
   try {
-    // Ambil data dari body permintaan frontend
-    const { subdomain, domain, ipAddress } = request.body;
+    if (!authenticate(request).isValid) {
+        return response.status(401).json({ message: 'API Key tidak valid atau tidak diberikan.' });
+    }
 
-    // Validasi input dasar
+    const { subdomain, domain, ipAddress } = request.body;
     if (!subdomain || !domain || !ipAddress) {
       return response.status(400).json({ message: 'Input tidak lengkap.' });
     }
 
-    // Ambil data domain RAHASIA dari Environment Variable di Vercel
+    // Baca variabel BARU yang hanya berisi data domain
     const domainDataString = process.env.CLOUDFLARE_DOMAINS;
     if (!domainDataString) {
         throw new Error('Konfigurasi domain tidak ditemukan di server.');
     }
     const domainData = JSON.parse(domainDataString);
 
-    // Cari konfigurasi untuk domain yang dipilih
-    const config = domainData[domain];
-    if (!config) {
+    const domainConfig = domainData[domain];
+    if (!domainConfig) {
       return response.status(404).json({ message: 'Domain tidak ditemukan di konfigurasi.' });
     }
 
-    const { zone, apitoken } = config;
+    const { zone, apitoken } = domainConfig;
     const fullDomain = `${subdomain}.${domain}`;
 
-    // Panggil API Cloudflare dari sisi server (aman)
     const cfResponse = await fetch(`https://api.cloudflare.com/client/v4/zones/${zone}/dns_records`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apitoken}` // Token API digunakan di sini, tidak terlihat oleh pengguna
+        'Authorization': `Bearer ${apitoken}`
       },
-      body: JSON.stringify({
-        type: 'A',
-        name: fullDomain,
-        content: ipAddress,
-        ttl: 1, // 1 = Otomatis
-        proxied: false
-      })
+      body: JSON.stringify({ type: 'A', name: fullDomain, content: ipAddress, ttl: 1, proxied: false })
     });
 
     const result = await cfResponse.json();
 
-    // Kirim kembali hasil dari Cloudflare ke frontend
     if (result.success) {
       return response.status(200).json(result);
     } else {
-      return response.status(400).json(result);
+      const errorMessage = result.errors?.[0]?.message || 'Gagal membuat subdomain.';
+      return response.status(400).json({ ...result, message: errorMessage });
     }
 
   } catch (error) {
-    console.error(error);
-    return response.status(500).json({ message: 'Terjadi kesalahan internal pada server.', error: error.message });
+    return response.status(500).json({ message: 'Kesalahan Internal Server', error: error.message });
   }
 }
